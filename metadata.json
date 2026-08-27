@@ -1,0 +1,6 @@
+{
+  "name": "Luhvreuben",
+  "description": "The official cute, creative, and magical website for Luhvreuben — featuring gaming, YouTube videos, Discord community, Roblox group Reuben's Corner, and social links.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

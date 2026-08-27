@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Quicksand', 'Outfit', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: 'Fredoka', 'M PLUS Rounded 1c', sans-serif;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-16px) rotate(6deg);
+  }
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spinSlow 18s linear infinite;
+}
+
+/* Custom Kawaii Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF8EE;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #181124;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #FFB6D2;
+  border-radius: 9999px;
+  border: 2px solid #FFF8EE;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #5E3E85;
+  border: 2px solid #181124;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF8FAB;
+}
