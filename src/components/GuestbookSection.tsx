@@ -7,10 +7,10 @@ import {
   SparkleStarIcon,
   TeddyIcon,
 } from './SvgIcons';
-import { Send, Heart, Sparkles, MessageSquareHeart, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Send, Heart, Sparkles, MessageSquareHeart, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { sounds } from '../utils/audio';
 import { fireHeartConfetti, fireSparkleBurst } from '../utils/confetti';
-import { validateContent } from '../utils/moderation';
+import { validateContent, checkContentWithAI } from '../utils/moderation';
 import { GuestbookMessage } from '../types';
 
 const INITIAL_MESSAGES: GuestbookMessage[] = [
@@ -75,44 +75,53 @@ export function GuestbookSection() {
 
   const stickers = ['🎀', '🌸', '✨', '💕', '🧸', '🎮', '🌷', '⭐'];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setModerationError(null);
-
-    // Validate content against inappropriate / rude words
-    const validation = validateContent(name, message);
-    if (!validation.isValid) {
-      sounds.playPop();
-      setModerationError(validation.reason || 'Please ensure your note is kind, respectful, and appropriate! 💕');
-      return;
-    }
-
-    sounds.playPop();
-    fireHeartConfetti();
     setIsSubmitting(true);
 
-    const colors = [
-      'from-[#FFE8F2] to-[#FFF0F7] dark:from-[#3B1F3C] dark:to-[#28152D]',
-      'from-[#F3EBFF] to-[#FAF6FF] dark:from-[#2E204E] dark:to-[#1E1438]',
-      'from-[#EEF1FF] to-[#F6F8FF] dark:from-[#22244E] dark:to-[#171939]',
-      'from-[#FFF8EE] to-[#FFF0F5] dark:from-[#36214A] dark:to-[#231536]',
-    ];
+    try {
+      // Validate content against inappropriate / rude words with Gemini AI + local heuristic
+      const validation = await checkContentWithAI(name, message);
+      if (!validation.isValid) {
+        sounds.playPop();
+        setModerationError(
+          validation.reason ||
+            '🌸 Please keep messages sweet, kind and respectful! Inappropriate or rude words are not allowed on the Community Board. 💕'
+        );
+        setIsSubmitting(false);
+        return;
+      }
 
-    const newMsg: GuestbookMessage = {
-      id: Date.now().toString(),
-      name: name.trim().slice(0, 30),
-      message: message.trim().slice(0, 200),
-      sticker: selectedSticker,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      createdAt: 'Just now',
-      likes: 1,
-    };
+      sounds.playPop();
+      fireHeartConfetti();
 
-    setMessages([newMsg, ...messages]);
-    setName('');
-    setMessage('');
-    setModerationError(null);
-    setIsSubmitting(false);
+      const colors = [
+        'from-[#FFE8F2] to-[#FFF0F7] dark:from-[#3B1F3C] dark:to-[#28152D]',
+        'from-[#F3EBFF] to-[#FAF6FF] dark:from-[#2E204E] dark:to-[#1E1438]',
+        'from-[#EEF1FF] to-[#F6F8FF] dark:from-[#22244E] dark:to-[#1E2145]',
+        'from-[#FFF8EE] to-[#FFF0F5] dark:from-[#36214A] dark:to-[#231536]',
+      ];
+
+      const newMsg: GuestbookMessage = {
+        id: Date.now().toString(),
+        name: name.trim().slice(0, 30),
+        message: message.trim().slice(0, 200),
+        sticker: selectedSticker,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        createdAt: 'Just now',
+        likes: 1,
+      };
+
+      setMessages([newMsg, ...messages]);
+      setName('');
+      setMessage('');
+      setModerationError(null);
+    } catch (err) {
+      console.error('Note submission error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleLike = (id: string, e: React.MouseEvent) => {
@@ -144,7 +153,7 @@ export function GuestbookSection() {
           {/* Wholesome Community Guidelines Badge */}
           <div className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#EDFAF1] dark:bg-[#1C3627] border border-[#BDE5CB] dark:border-[#2D5E3F] text-[#2E7D4E] dark:text-[#82E2A6] text-xs font-bold shadow-xs">
             <ShieldCheck size={14} />
-            <span>Kindness Protected: Only friendly, sweet & respectful notes allowed 🌸</span>
+            <span>AI Kindness Shield: Only friendly, sweet & respectful notes allowed 🌸</span>
           </div>
         </div>
 
@@ -245,10 +254,21 @@ export function GuestbookSection() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 px-6 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-[#FF8FAB] via-[#FF6EA7] to-[#CDB4FF] shadow-md hover:shadow-lg transition-all hover:scale-[1.01] active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-[#FF8FAB] via-[#FF6EA7] to-[#CDB4FF] shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                isSubmitting ? 'opacity-80 cursor-wait' : 'hover:scale-[1.01] active:scale-98'
+              }`}
             >
-              <Send size={16} />
-              <span>[ 💕 POST SWEET NOTE 💕 ]</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Checking & Posting Note... 🌸</span>
+                </>
+              ) : (
+                <>
+                  <Send size={16} />
+                  <span>[ 💕 POST SWEET NOTE 💕 ]</span>
+                </>
+              )}
             </button>
           </form>
         </motion.div>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-interface SparkleParticle {
+interface LoveHeartParticle {
   x: number;
   y: number;
   vx: number;
@@ -11,11 +11,13 @@ interface SparkleParticle {
   alpha: number;
   life: number;
   maxLife: number;
+  rotation: number;
+  vRot: number;
 }
 
-const SPARKLE_CHARS = ['✦', '✧', '⋆', '˚', '₊', '⊹', '♡'];
-const SPARKLE_COLORS_LIGHT = ['#FF8FAB', '#FFB6D2', '#CDB4FF', '#E6D7FF', '#FFD6E7', '#FF9EAA'];
-const SPARKLE_COLORS_DARK = ['#FFB6D2', '#E6D7FF', '#CDB4FF', '#FFE699', '#FF8FAB', '#D8B4FE'];
+const LOVE_HEART_CHARS = ['♡', '♥', '💕', '💖', '💗', '💓', '🌸', '✨', '🎀', '🌷'];
+const HEART_COLORS_LIGHT = ['#FF6EA7', '#FF8FAB', '#FFB6D2', '#FF4D8D', '#CDB4FF', '#FF9EAA', '#FFAFCC'];
+const HEART_COLORS_DARK = ['#FF8FAB', '#FFB6D2', '#FF6EA7', '#E6D7FF', '#CDB4FF', '#FFDFBA', '#D8B4FE'];
 
 export function SparkleCursor({ isDark }: { isDark: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -38,47 +40,58 @@ export function SparkleCursor({ isDark }: { isDark: boolean }) {
 
     window.addEventListener('resize', handleResize);
 
-    const particles: SparkleParticle[] = [];
-    let lastX = 0;
-    let lastY = 0;
+    const particles: LoveHeartParticle[] = [];
+    let lastX = -100;
+    let lastY = -100;
     let throttle = 0;
+
+    const spawnParticles = (x: number, y: number, count = 1, isBurst = false) => {
+      const colors = isDark ? HEART_COLORS_DARK : HEART_COLORS_LIGHT;
+      for (let i = 0; i < count; i++) {
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const char = LOVE_HEART_CHARS[Math.floor(Math.random() * LOVE_HEART_CHARS.length)];
+        const angle = isBurst ? Math.random() * Math.PI * 2 : (Math.random() * Math.PI - Math.PI / 2) * 1.5;
+        const speed = isBurst ? Math.random() * 3.5 + 1.2 : Math.random() * 1.4 + 0.4;
+
+        particles.push({
+          x: x + (Math.random() * 8 - 4),
+          y: y + (Math.random() * 8 - 4),
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - (isBurst ? 1.0 : 0.6), // float gently upward
+          size: Math.random() * (isBurst ? 12 : 8) + 12,
+          char,
+          color,
+          alpha: 1,
+          life: 0,
+          maxLife: Math.random() * (isBurst ? 35 : 22) + 20,
+          rotation: (Math.random() - 0.5) * 0.4,
+          vRot: (Math.random() - 0.5) * 0.05,
+        });
+      }
+
+      if (particles.length > 70) {
+        particles.splice(0, particles.length - 70);
+      }
+    };
 
     const handleMouseMove = (e: MouseEvent) => {
       const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
       throttle++;
 
-      // Create sparkles as mouse travels
-      if (dist > 6 || throttle % 3 === 0) {
+      // Create love hearts as mouse moves
+      if (dist > 8 || throttle % 3 === 0) {
         lastX = e.clientX;
         lastY = e.clientY;
-
-        const colors = isDark ? SPARKLE_COLORS_DARK : SPARKLE_COLORS_LIGHT;
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        const char = SPARKLE_CHARS[Math.floor(Math.random() * SPARKLE_CHARS.length)];
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 1.2 + 0.3;
-
-        particles.push({
-          x: e.clientX,
-          y: e.clientY,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 0.4, // float gently upward
-          size: Math.random() * 8 + 12,
-          char,
-          color,
-          alpha: 1,
-          life: 0,
-          maxLife: Math.random() * 25 + 25,
-        });
-
-        // Limit particles for optimal FPS
-        if (particles.length > 50) {
-          particles.shift();
-        }
+        spawnParticles(e.clientX, e.clientY, 1, false);
       }
     };
 
+    const handleClick = (e: MouseEvent) => {
+      spawnParticles(e.clientX, e.clientY, 6, true);
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('click', handleClick);
 
     let animationFrameId: number;
 
@@ -90,7 +103,8 @@ export function SparkleCursor({ isDark }: { isDark: boolean }) {
         p.life++;
         p.x += p.vx;
         p.y += p.vy;
-        p.alpha = 1 - p.life / p.maxLife;
+        p.rotation += p.vRot;
+        p.alpha = Math.max(0, 1 - p.life / p.maxLife);
 
         if (p.alpha <= 0 || p.life >= p.maxLife) {
           particles.splice(i, 1);
@@ -98,14 +112,16 @@ export function SparkleCursor({ isDark }: { isDark: boolean }) {
         }
 
         ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
         ctx.font = `${p.size}px "Fredoka", "Quicksand", sans-serif`;
         ctx.fillStyle = p.color;
-        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.globalAlpha = p.alpha;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = p.color;
-        ctx.shadowBlur = isDark ? 8 : 4;
-        ctx.fillText(p.char, p.x, p.y);
+        ctx.shadowBlur = isDark ? 10 : 5;
+        ctx.fillText(p.char, 0, 0);
         ctx.restore();
       }
 
@@ -117,6 +133,7 @@ export function SparkleCursor({ isDark }: { isDark: boolean }) {
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('click', handleClick);
       cancelAnimationFrame(animationFrameId);
     };
   }, [isDark]);
